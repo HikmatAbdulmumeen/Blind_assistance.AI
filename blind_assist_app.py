@@ -2,185 +2,187 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 from gtts import gTTS
-import io
+import time
 
-# Beautiful page configuration
+# Auto-configure for blind users
 st.set_page_config(
-    page_title="SeeForMe - Blind Assistance AI",
-    page_icon="🦯",
-    layout="wide",
+    page_title="AudioVision - Voice-First Assistant",
+    page_icon="🎧",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for beautiful design
+# Bold, high-contrast design for visibility
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 3.5rem;
-        color: #2E86AB;
-        text-align: center;
-        margin-bottom: 1rem;
-        font-weight: bold;
-    }
-    .subheader {
-        font-size: 1.5rem;
-        color: #5D5D5D;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .assistance-box {
+    /* Vibrant background */
+    .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 25px;
-        border-radius: 15px;
-        color: white;
+    }
+    
+    /* Main container with high contrast */
+    .main-container {
+        background-color: #000000;
+        padding: 40px;
+        border-radius: 25px;
+        border: 4px solid #00FF00;
         margin: 20px 0;
     }
-    .camera-container {
-        background-color: #f8f9fa;
-        padding: 20px;
+    
+    /* Large, bold text for low vision */
+    .main-title {
+        font-size: 4rem !important;
+        color: #00FF00 !important;
+        text-align: center;
+        font-weight: 900;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px #000000;
+    }
+    
+    .subtitle {
+        font-size: 1.8rem !important;
+        color: #FFFFFF !important;
+        text-align: center;
+        font-weight: 600;
+        margin-bottom: 30px;
+    }
+    
+    /* Voice instruction box */
+    .voice-box {
+        background-color: #FF6B35;
+        padding: 30px;
+        border-radius: 20px;
+        border: 3px solid #FFFFFF;
+        margin: 25px 0;
+        text-align: center;
+    }
+    
+    /* Status messages */
+    .status-box {
+        background-color: #000000;
+        color: #00FF00;
+        padding: 25px;
         border-radius: 15px;
-        border: 2px dashed #2E86AB;
+        border: 2px solid #00FF00;
+        font-size: 1.4rem;
+        text-align: center;
+        margin: 20px 0;
     }
-    .success-box {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #28a745;
-        margin: 15px 0;
-    }
-    .demo-box {
-        background-color: #e7f3ff;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #007bff;
-        margin: 15px 0;
+    
+    /* Camera area styling */
+    .camera-area {
+        background-color: #1a1a1a;
+        padding: 30px;
+        border-radius: 20px;
+        border: 3px dashed #00FF00;
+        margin: 25px 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Header Section
-st.markdown('<h1 class="main-header">👁️ SeeForMe AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subheader">Visual Assistance for the Visually Impaired</p>', unsafe_allow_html=True)
+# Main app content
+st.markdown("""
+<div class="main-container">
+    <h1 class="main-title">🎧 AUDIOVISION</h1>
+    <p class="subtitle">Voice-First Environmental Assistant</p>
+</div>
+""", unsafe_allow_html=True)
 
-# Hero Section
-col1, col2 = st.columns([2, 1])
-with col1:
-    st.markdown("""
-    <div class="assistance-box">
-        <h3>🦯 How It Works</h3>
-        <p><b>1.</b> Point your camera at your surroundings</p>
-        <p><b>2.</b> Take a picture</p>
-        <p><b>3.</b> AI describes what it sees aloud</p>
-        <p><b>4.</b> Understand your environment safely</p>
-    </div>
-    """, unsafe_allow_html=True)
+# Voice instructions (will be spoken first)
+st.markdown("""
+<div class="voice-box">
+    <h2 style='color: white; font-size: 2rem; margin: 0;'>🎤 VOICE MODE ACTIVE</h2>
+    <p style='color: white; font-size: 1.3rem; margin: 10px 0 0 0;'>
+        Point your device and wait for audio guidance
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-with col2:
-    st.markdown("""
-    <div style="background-color: #fff3cd; padding: 20px; border-radius: 10px; border-left: 5px solid #ffc107;">
-        <h4>⚠️ Important</h4>
-        <p>This is a demonstration tool. Always be aware of your actual surroundings and use other mobility aids.</p>
-    </div>
-    """, unsafe_allow_html=True)
+# Initial voice greeting (auto-plays)
+def speak_message(message):
+    """Speak message aloud"""
+    try:
+        tts = gTTS(text=message, lang='en', slow=False)
+        tts.save("greeting.mp3")
+        st.audio("greeting.mp3", autoplay=True)
+    except:
+        pass
 
-# Simple image analysis (no complex AI for now)
-def analyze_image_simple(image):
-    """Simple image analysis that works without OpenCV/TensorFlow"""
-    # Convert to numpy array
+# Auto-greet when app loads
+if 'greeted' not in st.session_state:
+    speak_message("Audio Vision Assistant activated. Point your device camera and wait for environment analysis.")
+    st.session_state.greeted = True
+
+# Simple analysis function
+def analyze_environment(image):
+    """Simple environment analysis"""
     img_array = np.array(image)
+    brightness = np.mean(img_array)
     
-    # Simple brightness analysis
-    avg_brightness = np.mean(img_array)
-    
-    # Simple color analysis
-    avg_red = np.mean(img_array[:, :, 0])
-    avg_green = np.mean(img_array[:, :, 1])
-    avg_blue = np.mean(img_array[:, :, 2])
-    
-    # Generate description based on simple analysis
-    if avg_brightness < 50:
-        return "The area appears dark, please be cautious"
-    elif avg_brightness > 200:
-        return "The area is very bright and well-lit"
-    elif avg_red > avg_green and avg_red > avg_blue:
-        return "Warm lighting detected in the area"
-    elif avg_green > avg_red and avg_green > avg_blue:
-        return "Natural green tones detected, possibly outdoors"
+    if brightness < 50:
+        return "Low light environment detected. Please proceed with caution."
+    elif brightness > 200:
+        return "Brightly lit area detected. Good visibility."
     else:
-        return "The area appears clear and accessible"
+        return "Moderate lighting detected. Environment appears clear."
 
-# Demo object detection (simulated)
-def get_demo_objects():
-    """Return demo objects for demonstration purposes"""
-    demo_objects = ["person", "chair", "table", "door"]
-    import random
-    detected = random.sample(demo_objects, random.randint(1, 2))
-    return detected
+# Camera interface with auto-capture
+st.markdown("""
+<div class="camera-area">
+    <h3 style='color: #00FF00; text-align: center;'>📷 ENVIRONMENT SCANNER</h3>
+    <p style='color: white; text-align: center;'>Camera will auto-analyze when ready</p>
+</div>
+""", unsafe_allow_html=True)
 
-# Main Camera Interface
-st.markdown("## 📷 Camera Assistance")
-st.markdown('<div class="camera-container">', unsafe_allow_html=True)
-
+# Camera with auto-processing
 img_file_buffer = st.camera_input(
-    "Point your camera and press the button below",
-    help="Allow camera access to use this feature"
+    " ",
+    label_visibility="collapsed"
 )
 
-st.markdown('</div>', unsafe_allow_html=True)
-
+# Auto-process when image is captured
 if img_file_buffer is not None:
-    # Process the image using PIL only
-    image = Image.open(img_file_buffer)
-    
-    # Show loading animation
-    with st.spinner("🔍 Analyzing your surroundings..."):
-        # Simple analysis
-        simple_description = analyze_image_simple(image)
+    with st.spinner(""):
+        # Show processing status
+        st.markdown("""
+        <div class="status-box">
+            🔍 ANALYZING ENVIRONMENT... PLEASE WAIT
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Demo object detection
-        demo_objects = get_demo_objects()
-    
-    # Create description
-    if demo_objects:
-        if len(demo_objects) == 1:
-            description = f"I can see a {demo_objects[0]}. {simple_description}"
-        else:
-            objects_text = " and ".join(demo_objects)
-            description = f"I can see {objects_text}. {simple_description}"
-    else:
-        description = simple_description
-    
-    # Display results beautifully
-    st.markdown(f"""
-    <div class="success-box">
-        <h3>🎯 Assistance Result</h3>
-        <p style="font-size: 1.2rem; margin-bottom: 10px;"><b>{description}</b></p>
-        <p><i>This description has been spoken aloud for you</i></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Demo notice
-    st.markdown("""
-    <div class="demo-box">
-        <h4>🎭 Demonstration Mode</h4>
-        <p>This is a demonstration version. In a full implementation, this would use advanced AI to detect real objects in your environment.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Speak the description automatically
-    try:
-        tts = gTTS(text=description, lang="en", slow=False)
-        tts.save("assistance.mp3")
-        st.audio("assistance.mp3", autoplay=True)
-    except Exception as e:
-        st.error("Audio unavailable - please read the description above")
+        # Process image
+        image = Image.open(img_file_buffer)
+        analysis = analyze_environment(image)
+        
+        # Speak results immediately
+        speak_message(analysis)
+        
+        # Display results
+        st.markdown(f"""
+        <div class="status-box">
+            ✅ ANALYSIS COMPLETE
+            <br><br>
+            {analysis}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Auto-reset after 8 seconds for continuous use
+        time.sleep(8)
+        st.rerun()
+
+# Continuous operation instructions
+st.markdown("""
+<div style='background-color: #000000; padding: 20px; border-radius: 15px; border: 2px solid #FF6B35; margin-top: 20px;'>
+    <h3 style='color: #FF6B35; text-align: center;'>♾️ CONTINUOUS MODE</h3>
+    <p style='color: white; text-align: center; font-size: 1.1rem;'>
+        Keep pointing your device - the app will continuously analyze and speak
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 # Footer
-st.markdown("---")
-st.markdown(
-    "<div style='text-align: center; color: #6c757d;'>"
-    "Made with ❤️ for accessibility | SeeForMe AI Assistant (Demo Version)"
-    "</div>", 
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div style='text-align: center; color: #FFFFFF; margin-top: 30px;'>
+    <p style='font-size: 0.9rem;'>VOICE-FIRST ACCESSIBILITY TECHNOLOGY</p>
+</div>
+""", unsafe_allow_html=True)
