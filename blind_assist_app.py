@@ -2,12 +2,12 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 from gtts import gTTS
-import cv2
+import io
 
 # Beautiful page configuration
 st.set_page_config(
     page_title="SeeForMe - Blind Assistance AI",
-    page_icon="",
+    page_icon="🦯",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -49,6 +49,13 @@ st.markdown("""
         border-left: 5px solid #28a745;
         margin: 15px 0;
     }
+    .demo-box {
+        background-color: #e7f3ff;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #007bff;
+        margin: 15px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,31 +84,39 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-# Load simple face and object detectors (built into OpenCV)
-@st.cache_resource
-def load_detectors():
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    return face_cascade
+# Simple image analysis (no complex AI for now)
+def analyze_image_simple(image):
+    """Simple image analysis that works without OpenCV/TensorFlow"""
+    # Convert to numpy array
+    img_array = np.array(image)
+    
+    # Simple brightness analysis
+    avg_brightness = np.mean(img_array)
+    
+    # Simple color analysis
+    avg_red = np.mean(img_array[:, :, 0])
+    avg_green = np.mean(img_array[:, :, 1])
+    avg_blue = np.mean(img_array[:, :, 2])
+    
+    # Generate description based on simple analysis
+    if avg_brightness < 50:
+        return "The area appears dark, please be cautious"
+    elif avg_brightness > 200:
+        return "The area is very bright and well-lit"
+    elif avg_red > avg_green and avg_red > avg_blue:
+        return "Warm lighting detected in the area"
+    elif avg_green > avg_red and avg_green > avg_blue:
+        return "Natural green tones detected, possibly outdoors"
+    else:
+        return "The area appears clear and accessible"
 
-detector = load_detectors()
-
-def analyze_image(image):
-    """Analyze image using simple detectors"""
-    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    
-    # Detect faces
-    faces = detector.detectMultiScale(gray, 1.1, 4)
-    
-    object_counts = {}
-    if len(faces) > 0:
-        object_counts['person'] = len(faces)
-    
-    # Simple color-based object detection (as fallback)
-    # You can add more sophisticated detection here later
-    if len(object_counts) == 0:
-        object_counts['area'] = 1  # Default description
-    
-    return object_counts
+# Demo object detection (simulated)
+def get_demo_objects():
+    """Return demo objects for demonstration purposes"""
+    demo_objects = ["person", "chair", "table", "door"]
+    import random
+    detected = random.sample(demo_objects, random.randint(1, 2))
+    return detected
 
 # Main Camera Interface
 st.markdown("## 📷 Camera Assistance")
@@ -115,24 +130,26 @@ img_file_buffer = st.camera_input(
 st.markdown('</div>', unsafe_allow_html=True)
 
 if img_file_buffer is not None:
-    # Process the image
-    bytes_data = img_file_buffer.getvalue()
-    cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-    image = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+    # Process the image using PIL only
+    image = Image.open(img_file_buffer)
     
     # Show loading animation
-    with st.spinner("🔍 AI is analyzing your surroundings..."):
-        object_counts = analyze_image(image)
+    with st.spinner("🔍 Analyzing your surroundings..."):
+        # Simple analysis
+        simple_description = analyze_image_simple(image)
+        
+        # Demo object detection
+        demo_objects = get_demo_objects()
     
-    # Create natural language description
-    if 'person' in object_counts:
-        count = object_counts['person']
-        if count == 1:
-            description = "I can see one person nearby"
+    # Create description
+    if demo_objects:
+        if len(demo_objects) == 1:
+            description = f"I can see a {demo_objects[0]}. {simple_description}"
         else:
-            description = f"I can see {count} people nearby"
+            objects_text = " and ".join(demo_objects)
+            description = f"I can see {objects_text}. {simple_description}"
     else:
-        description = "The area appears clear and open"
+        description = simple_description
     
     # Display results beautifully
     st.markdown(f"""
@@ -140,6 +157,14 @@ if img_file_buffer is not None:
         <h3>🎯 Assistance Result</h3>
         <p style="font-size: 1.2rem; margin-bottom: 10px;"><b>{description}</b></p>
         <p><i>This description has been spoken aloud for you</i></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Demo notice
+    st.markdown("""
+    <div class="demo-box">
+        <h4>🎭 Demonstration Mode</h4>
+        <p>This is a demonstration version. In a full implementation, this would use advanced AI to detect real objects in your environment.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -155,7 +180,7 @@ if img_file_buffer is not None:
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #6c757d;'>"
-    "Made with ❤️ for accessibility | SeeForMe AI Assistant"
+    "Made with ❤️ for accessibility | SeeForMe AI Assistant (Demo Version)"
     "</div>", 
     unsafe_allow_html=True
 )
