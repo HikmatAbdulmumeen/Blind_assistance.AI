@@ -1,53 +1,174 @@
-
 import streamlit as st
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 from PIL import Image
 from gtts import gTTS
+import cv2
 
-st.set_page_config(page_title="Blind Assistance AI", page_icon="🦯")
-st.warning("🦯 BLIND ASSISTANCE AI - FOR DEMONSTRATION ONLY")
-st.title(" Blind Assistance AI")
+# Beautiful page configuration
+st.set_page_config(
+    page_title="SeeForMe - Blind Assistance AI",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
+# Custom CSS for beautiful design
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 3.5rem;
+        color: #2E86AB;
+        text-align: center;
+        margin-bottom: 1rem;
+        font-weight: bold;
+    }
+    .subheader {
+        font-size: 1.5rem;
+        color: #5D5D5D;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .assistance-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 25px;
+        border-radius: 15px;
+        color: white;
+        margin: 20px 0;
+    }
+    .camera-container {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 15px;
+        border: 2px dashed #2E86AB;
+    }
+    .success-box {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #28a745;
+        margin: 15px 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Header Section
+st.markdown('<h1 class="main-header">👁️ SeeForMe AI</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subheader">Visual Assistance for the Visually Impaired</p>', unsafe_allow_html=True)
+
+# Hero Section
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.markdown("""
+    <div class="assistance-box">
+        <h3>🦯 How It Works</h3>
+        <p><b>1.</b> Point your camera at your surroundings</p>
+        <p><b>2.</b> Take a picture</p>
+        <p><b>3.</b> AI describes what it sees aloud</p>
+        <p><b>4.</b> Understand your environment safely</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div style="background-color: #fff3cd; padding: 20px; border-radius: 10px; border-left: 5px solid #ffc107;">
+        <h4>⚠️ Important</h4>
+        <p>This is a demonstration tool. Always be aware of your actual surroundings and use other mobility aids.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Load AI Model
 @st.cache_resource
 def load_model():
-    return hub.load("https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2")
+    with st.spinner("🔄 Loading AI vision model..."):
+        return hub.load("https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2")
 
 model = load_model()
 
-CLASS_NAMES = ['person', 'bicycle', 'car', 'chair', 'dining table', 'tv', 'laptop', 'cell phone', 'book']
+# Objects we can detect (curated for blind assistance)
+CLASS_NAMES = ["person", "chair", "door", "table", "car", "stairs", "bed", 
+               "toilet", "tv", "laptop", "cell phone", "book", "bottle", 
+               "cup", "dog", "cat"]
 
-uploaded_file = st.file_uploader(" Upload a photo", type=["jpg", "png", "jpeg"])
-
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    st.image(image, use_column_width=True)
-    
+def analyze_image(image):
+    """Analyze image and return object counts"""
     image_np = np.array(image)
-    image_tensor = tf.convert_to_tensor(image_np)[tf.newaxis, ...]
+    image_tensor = tf.convert_to_tensor(image_np)
+    image_tensor = image_tensor[tf.newaxis, ...]
     detections = model(image_tensor)
     
-    boxes = detections['detection_boxes'][0].numpy()
-    classes = detections['detection_classes'][0].numpy().astype(int)
-    scores = detections['detection_scores'][0].numpy()
+    boxes = detections["detection_boxes"][0].numpy()
+    classes = detections["detection_classes"][0].numpy().astype(int)
+    scores = detections["detection_scores"][0].numpy()
     
     object_counts = {}
     for i in range(len(scores)):
-        if scores[i] > 0.5 and classes[i] < len(CLASS_NAMES):
-            obj_name = CLASS_NAMES[classes[i]]
-            object_counts[obj_name] = object_counts.get(obj_name, 0) + 1
+        if scores[i] > 0.5:
+            class_id = classes[i]
+            if class_id < len(CLASS_NAMES):
+                obj_name = CLASS_NAMES[class_id]
+                object_counts[obj_name] = object_counts.get(obj_name, 0) + 1
     
+    return object_counts
+
+# Main Camera Interface
+st.markdown("## 📷 Camera Assistance")
+st.markdown('<div class="camera-container">', unsafe_allow_html=True)
+
+img_file_buffer = st.camera_input(
+    "Point your camera and press the button below",
+    help="Allow camera access to use this feature"
+)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+if img_file_buffer is not None:
+    # Process the image
+    bytes_data = img_file_buffer.getvalue()
+    cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+    image = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+    
+    # Show loading animation
+    with st.spinner("🔍 AI is analyzing your surroundings..."):
+        object_counts = analyze_image(image)
+    
+    # Create natural language description
     if object_counts:
-        description = "I detect " + ", ".join([f"{count} {obj}" for obj, count in object_counts.items()])
+        items = []
+        for obj, count in object_counts.items():
+            if count == 1:
+                items.append(f"a {obj}")
+            else:
+                items.append(f"{count} {obj}s")
+        
+        description = f"I can see {', '.join(items[:-1])} and {items[-1]}" if len(items) > 1 else f"I can see {items[0]}"
     else:
-        description = "No objects detected"
+        description = "The area appears clear and open"
     
-    st.success(f"**ASSISTANCE:** {description}")
+    # Display results beautifully
+    st.markdown(f"""
+    <div class="success-box">
+        <h3>🎯 Assistance Result</h3>
+        <p style="font-size: 1.2rem; margin-bottom: 10px;"><b>{description}</b></p>
+        <p><i>This description has been spoken aloud for you</i></p>
+    </div>
+    """, unsafe_allow_html=True)
     
+    # Speak the description automatically
     try:
-        tts = gTTS(text=description, lang='en', slow=False)
-        tts.save("assist.mp3")
-        st.audio("assist.mp3")
-    except:
-        st.write(" " + description)
+        tts = gTTS(text=description, lang="en", slow=False)
+        tts.save("assistance.mp3")
+        st.audio("assistance.mp3", autoplay=True)
+    except Exception as e:
+        st.error("Audio unavailable - please read the description above")
+
+# Footer
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: #6c757d;'>"
+    "Made with ❤️ for accessibility | SeeForMe AI Assistant"
+    "</div>", 
+    unsafe_allow_html=True
+)
